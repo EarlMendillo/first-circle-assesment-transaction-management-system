@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TransactIQ — First Circle</title>
+
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            fc: {
+              navy:       '#0D1B3E',
+              navyLight:  '#152650',
+              teal:       '#00B5A4',
+              tealLight:  '#00CDB9',
+              tealDark:   '#009688',
+              tealFaint:  '#E6F9F7',
+              offWhite:   '#F5F7FA',
+            },
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #B2D8D5; border-radius: 3px; }
+    tbody tr { transition: background 120ms ease; }
+    #modal-backdrop { transition: opacity 180ms ease; }
+    #modal-backdrop.hidden { pointer-events: none; }
+    #modal-panel { transition: transform 200ms ease, opacity 200ms ease; }
+    #modal-backdrop.hidden #modal-panel { transform: translateY(12px); opacity: 0; }
+    #toast { transition: opacity 250ms ease, transform 250ms ease; }
+    #toast.hide { opacity: 0; transform: translateY(8px); }
+    .field:focus { outline: 2px solid #00B5A4; outline-offset: 0; }
+    .fc-header { background: linear-gradient(135deg, #0D1B3E 0%, #152650 100%); }
+    .btn-teal { background-color: #00B5A4; transition: background-color 120ms ease, box-shadow 120ms ease; }
+    .btn-teal:hover  { background-color: #00CDB9; }
+    .btn-teal:active { background-color: #009688; }
+    .stat-chip { border-left: 3px solid #00B5A4; }
+    .txn-id { user-select: all; -webkit-user-select: all; }
+  </style>
+</head>
+
+<body class="bg-fc-offWhite text-slate-800 font-sans min-h-screen">
+
+  <header class="fc-header text-white shadow-lg">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3 shrink-0">
+        <div class="w-9 h-9 rounded-full border-2 border-[#00B5A4] flex items-center justify-center shrink-0">
+          <div class="w-4 h-4 rounded-full bg-[#00B5A4]"></div>
+        </div>
+        <div>
+          <span class="text-base font-bold tracking-tight leading-none block text-white">First Circle</span>
+          <span class="text-xs text-slate-400 leading-none font-medium tracking-wide uppercase">Transaction Management</span>
+        </div>
+      </div>
+
+      <div id="summary-chips" class="hidden sm:flex items-center gap-4">
+        <div class="stat-chip pl-3">
+          <p id="chip-total-num" class="text-lg font-bold text-white leading-none">—</p>
+          <p class="text-xs text-slate-400 leading-none mt-0.5">Total</p>
+        </div>
+        <div class="stat-chip pl-3">
+          <p id="chip-settled-num" class="text-lg font-bold text-emerald-400 leading-none">—</p>
+          <p class="text-xs text-slate-400 leading-none mt-0.5">Settled</p>
+        </div>
+        <div class="stat-chip pl-3">
+          <p id="chip-pending-num" class="text-lg font-bold text-amber-400 leading-none">—</p>
+          <p class="text-xs text-slate-400 leading-none mt-0.5">Pending</p>
+        </div>
+        <div class="stat-chip pl-3">
+          <p id="chip-failed-num" class="text-lg font-bold text-rose-400 leading-none">—</p>
+          <p class="text-xs text-slate-400 leading-none mt-0.5">Failed</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-6 py-8">
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <h1 class="text-xl font-bold text-fc-navy leading-tight">Transactions</h1>
+        <p class="text-sm text-slate-500 mt-0.5">View and manage all account transactions.</p>
+      </div>
+      <button
+        id="btn-open-modal"
+        class="btn-teal inline-flex items-center gap-2 text-white text-sm font-semibold px-4 py-2.5 rounded-lg shadow-sm"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+          <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
+        </svg>
+        Add Transaction
+      </button>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm mb-4 px-4 py-3 flex flex-wrap gap-3 items-center">
+      <div class="relative flex-1 min-w-[200px]">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
+             class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+          <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd" />
+        </svg>
+        <input
+          id="search-input"
+          type="text"
+          placeholder="Search by ID, name or account…"
+          class="field w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg placeholder-slate-400 focus:bg-white"
+        />
+      </div>
+      <select id="filter-status" class="field text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:bg-white">
+        <option value="">All Statuses</option>
+        <option value="Settled">Settled</option>
+        <option value="Pending">Pending</option>
+        <option value="Failed">Failed</option>
+      </select>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b-2 border-[#00B5A4]/30 bg-fc-tealFaint">
+              <th class="text-left px-5 py-3.5 font-semibold text-fc-navy whitespace-nowrap">Transaction ID</th>
+              <th class="text-left px-5 py-3.5 font-semibold text-fc-navy whitespace-nowrap">Date</th>
+              <th class="text-left px-5 py-3.5 font-semibold text-fc-navy whitespace-nowrap">Account Number</th>
+              <th class="text-left px-5 py-3.5 font-semibold text-fc-navy whitespace-nowrap">Account Holder</th>
+              <th class="text-right px-5 py-3.5 font-semibold text-fc-navy whitespace-nowrap">Amount</th>
+              <th class="text-center px-5 py-3.5 font-semibold text-fc-navy whitespace-nowrap">Status</th>
+              <th class="text-right px-5 py-3.5 font-semibold text-fc-navy whitespace-nowrap">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+
+      <div id="state-loading" class="py-16 text-center text-slate-400 text-sm">
+        <svg class="animate-spin w-6 h-6 mx-auto mb-3 text-[#00B5A4]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+        </svg>
+        Loading transactions…
+      </div>
+
+      <div id="state-empty" class="hidden py-16 text-center">
+        <div class="w-12 h-12 rounded-full bg-fc-tealFaint flex items-center justify-center mx-auto mb-3">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#00B5A4" stroke-width="1.5" class="w-6 h-6">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+        </div>
+        <p class="text-slate-600 font-semibold">No transactions found</p>
+        <p class="text-slate-400 text-sm mt-1">Try a different search or add your first transaction.</p>
+      </div>
+
+      <div id="state-error" class="hidden py-16 text-center">
+        <p class="text-rose-500 font-semibold">Could not load transactions</p>
+        <p class="text-slate-400 text-sm mt-1">Make sure the server is running, then
+          <button onclick="loadTransactions()" class="text-[#00B5A4] underline">try again</button>.
+        </p>
+      </div>
+
+      <div id="table-footer" class="hidden border-t border-slate-100 px-5 py-2.5 text-xs text-slate-400">
+        <span id="row-count"></span>
+      </div>
+    </div>
+  </main>
+
+  <div
+    id="modal-backdrop"
+    class="hidden fixed inset-0 z-50 flex items-center justify-center bg-fc-navy/70 backdrop-blur-sm px-4"
+    role="dialog" aria-modal="true" aria-labelledby="modal-title"
+  >
+    <div id="modal-panel" class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+      <div class="h-1 bg-[#00B5A4]"></div>
+      <div class="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+        <div>
+          <h2 id="modal-title" class="text-base font-bold text-fc-navy">New Transaction</h2>
+          <p class="text-xs text-slate-500 mt-0.5">Status will be randomly assigned by the server.</p>
+        </div>
+        <button
+          id="btn-close-modal"
+          class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+          aria-label="Close modal"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
+            <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+          </svg>
+        </button>
+      </div>
+
+      <form id="transaction-form" novalidate class="px-6 py-5 space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div class="col-span-2 sm:col-span-1">
+            <label for="f-date" class="block text-xs font-semibold text-fc-navy mb-1.5">Transaction Date</label>
+            <input id="f-date" name="date" type="date"
+              class="field w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:bg-white" required />
+            <p class="field-error hidden text-xs text-rose-500 mt-1"></p>
+          </div>
+          <div class="col-span-2 sm:col-span-1">
+            <label for="f-amount" class="block text-xs font-semibold text-fc-navy mb-1.5">Amount</label>
+            <input id="f-amount" name="amount" type="number" step="0.01" min="0.01" max="10000000" placeholder="0.00"
+              class="field w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:bg-white" required />
+            <p class="field-error hidden text-xs text-rose-500 mt-1"></p>
+          </div>
+        </div>
+
+        <div>
+          <label for="f-account" class="block text-xs font-semibold text-fc-navy mb-1.5">Account Number</label>
+          <input id="f-account" name="accountNumber" type="text" placeholder="1234-5678-9012" maxlength="14"
+            class="field w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:bg-white" required />
+          <p class="field-error hidden text-xs text-rose-500 mt-1"></p>
+        </div>
+
+        <div>
+          <label for="f-name" class="block text-xs font-semibold text-fc-navy mb-1.5">Account Holder Name</label>
+          <input id="f-name" name="accountHolder" type="text" placeholder="Full name"
+            class="field w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:bg-white" required />
+          <p class="field-error hidden text-xs text-rose-500 mt-1"></p>
+        </div>
+
+        <div id="form-error" class="hidden bg-rose-50 border border-rose-200 rounded-lg px-4 py-3 text-sm text-rose-600"></div>
+
+        <div class="flex gap-3 pt-1">
+          <button type="button" id="btn-cancel"
+            class="flex-1 px-4 py-2.5 text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
+            Cancel
+          </button>
+          <button type="submit" id="btn-submit"
+            class="btn-teal flex-1 px-4 py-2.5 text-sm font-semibold text-white rounded-lg inline-flex items-center justify-center gap-2">
+            <span id="btn-submit-label">Save Transaction</span>
+            <svg id="btn-submit-spinner" class="hidden animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+            </svg>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div
+    id="toast"
+    class="hide fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-3 bg-fc-navy text-white text-sm font-medium px-5 py-3 rounded-xl shadow-xl pointer-events-none select-none"
+    aria-live="polite"
+  >
+    <span id="toast-icon"></span>
+    <span id="toast-message"></span>
+  </div>
+
+  <script>
+    'use strict';
+
+    let allTransactions = [];
+
+    const tableBody       = document.getElementById('table-body');
+    const stateLoading    = document.getElementById('state-loading');
+    const stateEmpty      = document.getElementById('state-empty');
+    const stateError      = document.getElementById('state-error');
+    const tableFooter     = document.getElementById('table-footer');
+    const rowCount        = document.getElementById('row-count');
+    const searchInput     = document.getElementById('search-input');
+    const filterStatus    = document.getElementById('filter-status');
+    const modalBackdrop   = document.getElementById('modal-backdrop');
+    const form            = document.getElementById('transaction-form');
+    const formError       = document.getElementById('form-error');
+    const btnSubmit       = document.getElementById('btn-submit');
+    const btnSubmitLabel  = document.getElementById('btn-submit-label');
+    const btnSubmitSpinner= document.getElementById('btn-submit-spinner');
+    const toast           = document.getElementById('toast');
+    const toastIcon       = document.getElementById('toast-icon');
+    const toastMessage    = document.getElementById('toast-message');
+    const summaryChips    = document.getElementById('summary-chips');
+
+    const accountInput = document.getElementById('f-account');
+
+    function formatAccountNumber(raw) {
+      let digits = raw.replace(/\D/g, '');
+      if (digits.length > 12) digits = digits.substring(0, 12);
+      let formatted = '';
+      for (let i = 0; i < digits.length; i++) {
+        if (i > 0 && i % 4 === 0) formatted += '-';
+        formatted += digits[i];
+      }
+      return formatted;
+    }
+
+    accountInput.addEventListener('input', (e) => {
+      e.target.value = formatAccountNumber(e.target.value);
+    });
+
+    accountInput.addEventListener('blur', (e) => {
+      e.target.value = formatAccountNumber(e.target.value);
+    });
+
+    const STATUS_STYLES = {
+      Settled: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+      Pending: 'bg-amber-50  text-amber-700  ring-amber-200',
+      Failed:  'bg-rose-50   text-rose-700   ring-rose-200',
+    };
+    const DOT_COLORS = {
+      Settled: 'bg-emerald-500',
+      Pending: 'bg-amber-400',
+      Failed:  'bg-rose-500',
+    };
+
+    function statusBadge(status) {
+      const cls = STATUS_STYLES[status] ?? 'bg-slate-100 text-slate-600 ring-slate-200';
+      const dot = DOT_COLORS[status]  ?? 'bg-slate-400';
+      return `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ring-1 ring-inset ${cls}">
+                <span class="w-1.5 h-1.5 rounded-full ${dot}"></span>
+                ${escHtml(status)}
+              </span>`;
+    }
+
+    function escHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function formatDate(d) {
+      if (!d) return '—';
+      const [y, m, day] = d.split('-');
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return `${months[parseInt(m,10)-1]} ${parseInt(day,10)}, ${y}`;
+    }
+
+    function formatAmount(n) {
+      return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+    }
+
+    function copyTxnId(id) {
+      if (!id) return;
+      navigator.clipboard.writeText(id).then(() => {
+        showToast('success', `Copied ID: ${id}`);
+      }).catch(() => {
+        showToast('error', 'Failed to copy ID.');
+      });
+    }
+
+    function renderTable() {
+      const q      = searchInput.value.trim().toLowerCase();
+      const status = filterStatus.value;
+
+      const filtered = allTransactions.filter((t) => {
+        const matchSearch = !q ||
+          (t.id ?? '').toLowerCase().includes(q) ||
+          t.accountHolder.toLowerCase().includes(q) ||
+          t.accountNumber.toLowerCase().includes(q);
+        const matchStatus = !status || t.status === status;
+        return matchSearch && matchStatus;
+      });
+
+      stateLoading.classList.add('hidden');
+
+      if (filtered.length === 0) {
+        tableBody.innerHTML = '';
+        stateEmpty.classList.remove('hidden');
+        tableFooter.classList.add('hidden');
+        return;
+      }
+
+      stateEmpty.classList.add('hidden');
+      tableFooter.classList.remove('hidden');
+      rowCount.textContent = `Showing ${filtered.length} of ${allTransactions.length} transactions`;
+
+      tableBody.innerHTML = filtered.map((t, i) => `
+        <tr class="${i % 2 === 0 ? 'bg-white' : 'bg-fc-tealFaint/30'} hover:bg-[#E6F9F7]/60">
+          <td class="px-5 py-3.5 whitespace-nowrap text-left">
+            <span onclick="copyTxnId('${escHtml(t.id)}')" title="Click to copy" class="txn-id font-mono text-xs font-semibold text-fc-navy tracking-wide cursor-pointer hover:text-[#009688]">${escHtml(t.id ?? '—')}</span>
+          </td>
+          <td class="px-5 py-3.5 whitespace-nowrap text-left text-slate-700 font-medium">${formatDate(t.date)}</td>
+          <td class="px-5 py-3.5 whitespace-nowrap font-mono text-slate-500 text-xs tracking-wide">${escHtml(t.accountNumber)}</td>
+          <td class="px-5 py-3.5 whitespace-nowrap text-slate-800 font-medium">${escHtml(t.accountHolder)}</td>
+          <td class="px-5 py-3.5 whitespace-nowrap text-right font-bold text-fc-navy">${formatAmount(t.amount)}</td>
+          <td class="px-5 py-3.5 text-center">${statusBadge(t.status)}</td>
+          <td class="px-5 py-3.5 text-right whitespace-nowrap">
+            <button onclick="copyTxnId('${escHtml(t.id)}')" class="text-xs font-semibold text-[#00B5A4] hover:text-[#009688] bg-fc-tealFaint px-2.5 py-1 rounded-md transition-colors">
+              Copy ID
+            </button>
+          </td>
+        </tr>`
+      ).join('');
+    }
+
+    function updateChips(transactions) {
+      const counts = { Settled: 0, Pending: 0, Failed: 0 };
+      transactions.forEach((t) => { if (counts[t.status] !== undefined) counts[t.status]++; });
+      document.getElementById('chip-total-num').textContent   = transactions.length;
+      document.getElementById('chip-settled-num').textContent = counts.Settled;
+      document.getElementById('chip-pending-num').textContent = counts.Pending;
+      document.getElementById('chip-failed-num').textContent  = counts.Failed;
+      summaryChips.classList.remove('hidden');
+    }
+
+    async function loadTransactions() {
+      stateLoading.classList.remove('hidden');
+      stateError.classList.add('hidden');
+      stateEmpty.classList.add('hidden');
+      tableBody.innerHTML = '';
+      tableFooter.classList.add('hidden');
+      try {
+        const res  = await fetch('/transactions');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        allTransactions = json.data ?? [];
+        updateChips(allTransactions);
+        renderTable();
+      } catch (err) {
+        console.error('loadTransactions error:', err);
+        stateLoading.classList.add('hidden');
+        stateError.classList.remove('hidden');
+      }
+    }
+
+    function openModal() {
+      modalBackdrop.classList.remove('hidden');
+      const dateInput = document.getElementById('f-date');
+      dateInput.max = localToday();
+      dateInput.value = localToday();
+      clearFormErrors();
+      formError.classList.add('hidden');
+      dateInput.focus();
+    }
+
+    function closeModal() {
+      modalBackdrop.classList.add('hidden');
+      form.reset();
+      clearFormErrors();
+      formError.classList.add('hidden');
+    }
+
+    function clearFormErrors() {
+      form.querySelectorAll('.field-error').forEach((el) => { el.textContent = ''; el.classList.add('hidden'); });
+      form.querySelectorAll('input').forEach((el) => el.classList.remove('border-rose-400', 'bg-rose-50'));
+    }
+
+    function showFieldError(inputEl, message) {
+      inputEl.classList.add('border-rose-400', 'bg-rose-50');
+      const errEl = inputEl.parentElement.querySelector('.field-error')
+                 ?? inputEl.closest('div')?.nextElementSibling;
+      if (errEl && errEl.classList.contains('field-error')) {
+        errEl.textContent = message;
+        errEl.classList.remove('hidden');
+      }
+    }
+
+    const MAX_AMOUNT = 10000000;
+    const FIELD_IDS = {
+      date: 'f-date',
+      accountNumber: 'f-account',
+      accountHolder: 'f-name',
+      amount: 'f-amount',
+    };
+
+    function localToday() {
+      const d = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    }
+
+    function isRealDate(value) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+      const [y, m, d] = value.split('-').map(Number);
+      const dt = new Date(Date.UTC(y, m - 1, d));
+      return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+    }
+
+    function validateForm(data) {
+      clearFormErrors();
+      const errors = {};
+
+      if (!data.date) {
+        errors.date = 'Please select a transaction date.';
+      } else if (!isRealDate(data.date)) {
+        errors.date = 'Enter a valid date.';
+      } else if (data.date > localToday()) {
+        errors.date = 'Transaction date cannot be in the future.';
+      }
+
+      if (!/^\d{4}-\d{4}-\d{4}$/.test(data.accountNumber.trim())) {
+        errors.accountNumber = 'Enter all 12 digits (1234-5678-9012).';
+      }
+
+      const name = data.accountHolder.trim().replace(/\s+/g, ' ');
+      if (!name) {
+        errors.accountHolder = 'Account holder name is required.';
+      } else if (name.length < 2 || name.length > 100) {
+        errors.accountHolder = 'Name must be between 2 and 100 characters.';
+      } else if (!/^\p{L}[\p{L}\p{M} .'-]*$/u.test(name)) {
+        errors.accountHolder = 'Use letters, spaces, apostrophes, periods or hyphens only.';
+      }
+
+      const amountText = String(data.amount).trim();
+      if (!/^\d+(\.\d{1,2})?$/.test(amountText) || Number(amountText) <= 0) {
+        errors.amount = 'Enter a positive amount with up to 2 decimals.';
+      } else if (Number(amountText) > MAX_AMOUNT) {
+        errors.amount = `Amount cannot exceed ${MAX_AMOUNT.toLocaleString('en-US')}.`;
+      }
+
+      showFieldErrors(errors);
+      return Object.keys(errors).length === 0;
+    }
+
+    function showFieldErrors(errors) {
+      let shown = false;
+      Object.entries(errors).forEach(([field, message]) => {
+        const el = document.getElementById(FIELD_IDS[field]);
+        if (el) {
+          showFieldError(el, message);
+          shown = true;
+        }
+      });
+      return shown;
+    }
+
+    async function submitTransaction(data, allowDuplicate = false) {
+      btnSubmitLabel.textContent = 'Saving…';
+      btnSubmitSpinner.classList.remove('hidden');
+      btnSubmit.disabled = true;
+
+      try {
+        const res  = await fetch('/transactions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(allowDuplicate ? { ...data, allowDuplicate: true } : data),
+        });
+        const json = await res.json();
+
+        if (res.status === 409 && json.code === 'DUPLICATE') {
+          if (confirm(`${json.message}\n\nAdd it anyway?`)) {
+            return submitTransaction(data, true);
+          }
+          return;
+        }
+
+        if (!res.ok) {
+          clearFormErrors();
+          const mapped = json.errors ? showFieldErrors(json.errors) : false;
+          if (!mapped) {
+            formError.textContent = json.message ?? 'Something went wrong.';
+            formError.classList.remove('hidden');
+          }
+          return;
+        }
+
+        allTransactions.unshift(json.data);
+        updateChips(allTransactions);
+        renderTable();
+        closeModal();
+        showToast('success', `Transaction added — ${json.data.status}`);
+      } catch (err) {
+        console.error('Submit error:', err);
+        formError.textContent = 'Could not connect to the server. Please try again.';
+        formError.classList.remove('hidden');
+      } finally {
+        btnSubmitLabel.textContent = 'Save Transaction';
+        btnSubmitSpinner.classList.add('hidden');
+        btnSubmit.disabled = false;
+      }
+    }
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      formError.classList.add('hidden');
+
+      const data = {
+        date:          document.getElementById('f-date').value,
+        accountNumber: formatAccountNumber(document.getElementById('f-account').value),
+        accountHolder: document.getElementById('f-name').value.trim().replace(/\s+/g, ' '),
+        amount:        document.getElementById('f-amount').value,
+      };
+
+      if (!validateForm(data)) return;
+      submitTransaction(data);
+    });
+
+    let toastTimer;
+    function showToast(type, message) {
+      clearTimeout(toastTimer);
+      toastIcon.innerHTML = type === 'success'
+        ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 text-[#00B5A4]"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" /></svg>`
+        : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 text-rose-400"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg>`;
+      toastMessage.textContent = message;
+      toast.classList.remove('hide');
+      toastTimer = setTimeout(() => toast.classList.add('hide'), 3200);
+    }
+
+    document.getElementById('btn-open-modal').addEventListener('click', openModal);
+    document.getElementById('btn-close-modal').addEventListener('click', closeModal);
+    document.getElementById('btn-cancel').addEventListener('click', closeModal);
+    modalBackdrop.addEventListener('click', (e) => { if (e.target === modalBackdrop) closeModal(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !modalBackdrop.classList.contains('hidden')) closeModal();
+    });
+    searchInput.addEventListener('input', renderTable);
+    filterStatus.addEventListener('change', renderTable);
+
+    loadTransactions();
+  </script>
+</body>
+</html>
